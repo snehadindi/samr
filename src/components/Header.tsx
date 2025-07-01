@@ -38,6 +38,8 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'about', label: 'About', icon: BookOpen },
+    { id: 'contact', label: 'Contact', icon: MessageCircle },
     ...(user ? [
       { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
       { id: 'practice', label: 'Practice', icon: Mic },

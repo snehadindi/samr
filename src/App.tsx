@@ -10,6 +10,8 @@ import PitchPractice from './components/PitchPractice';
 import Templates from './components/Templates';
 import Glossary from './components/Glossary';
 import AICoach from './components/AICoach';
+import About from './components/About';
+import Contact from './components/Contact';
 import AuthModal from './components/AuthModal';
 import DemoMode from './components/DemoMode';
 import { AuthProvider } from './contexts/AuthContext';
@@ -20,7 +22,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-type View = 'home' | 'dashboard' | 'practice' | 'templates' | 'glossary' | 'coach' | 'demo';
+type View = 'home' | 'about' | 'contact' | 'dashboard' | 'practice' | 'templates' | 'glossary' | 'coach' | 'demo';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -43,7 +45,7 @@ function App() {
       return;
     }
     
-    if (!user && view !== 'home') {
+    if (!user && ['dashboard', 'practice', 'templates', 'glossary', 'coach'].includes(view)) {
       setShowAuthModal(true);
       return;
     }
@@ -53,6 +55,10 @@ function App() {
 
   const renderCurrentView = () => {
     switch (currentView) {
+      case 'about':
+        return <About />;
+      case 'contact':
+        return <Contact />;
       case 'dashboard':
         return <Dashboard />;
       case 'practice':

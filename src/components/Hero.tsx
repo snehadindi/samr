@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Mic, TrendingUp, Users } from 'lucide-react';
+import { Play, Mic, TrendingUp, Users, Zap } from 'lucide-react';
 
 interface HeroProps {
   onTryDemo: () => void;
@@ -16,6 +16,25 @@ const Hero: React.FC<HeroProps> = ({ onTryDemo, onGetStarted }) => {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center max-w-4xl mx-auto">
+          {/* New Confidence Section */}
+          <div className="mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-electric-blue mb-2">
+              FUELING CONFIDENCE
+            </h2>
+            <p className="text-xl md:text-2xl text-gray-300 mb-4">
+              One Pitch at a Time
+            </p>
+            <button
+              onClick={onGetStarted}
+              className="bg-gradient-to-r from-electric-green to-electric-blue px-8 py-3 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-electric-green/25 transition-all duration-200 transform hover:scale-105 mb-4"
+            >
+              START PITCHING
+            </button>
+            <p className="text-lg text-gray-400">
+              Analyze. Improve. Impress.
+            </p>
+          </div>
+
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Perfect Your{' '}
             <span className="bg-gradient-to-r from-electric-blue via-electric-purple to-electric-green bg-clip-text text-transparent">
