@@ -5,7 +5,7 @@ const About: React.FC = () => {
   const founders = [
     {
       name: 'Sneha Dindi',
-      image: 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=400',
+      image: '/sneha.jpg',
       social: {
         instagram: 'https://instagram.com/sneha_dindi',
         linkedin: 'https://linkedin.com/in/sneha-dindi',
@@ -14,7 +14,7 @@ const About: React.FC = () => {
     },
     {
       name: 'Dasari Manvanth',
-      image: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=400',
+      image: '/manvanth.jpg',
       social: {
         instagram: 'https://instagram.com/manvanth.d',
         linkedin: 'https://linkedin.com/in/d-manvanth',
@@ -23,7 +23,7 @@ const About: React.FC = () => {
     },
     {
       name: 'Pati Yuktha',
-      image: 'https://images.pexels.com/photos/3763152/pexels-photo-3763152.jpeg?auto=compress&cs=tinysrgb&w=400',
+      image: '/yuktha.jpg',
       social: {
         instagram: 'https://instagram.com/yukta_pati',
         linkedin: 'https://linkedin.com/in/yuktha-pati',
@@ -32,7 +32,7 @@ const About: React.FC = () => {
     },
     {
       name: 'Manne Namratha Sai',
-      image: 'https://images.pexels.com/photos/3763153/pexels-photo-3763153.jpeg?auto=compress&cs=tinysrgb&w=400',
+      image: '/namratha.jpg',
       social: {
         instagram: 'https://instagram.com/mannenamratha',
         linkedin: 'https://linkedin.com/in/manne-namratha-sai-029771259',
@@ -129,13 +129,18 @@ const About: React.FC = () => {
                 key={index}
                 className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 text-center hover:border-white/20 transition-all duration-300 hover:transform hover:scale-105"
               >
-                <div className="relative mb-6">
-                  <img
-                    src={founder.image}
-                    alt={founder.name}
-                    className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-electric-blue/30"
-                  />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-t from-electric-blue/20 to-transparent"></div>
+                <div className="relative mb-6 group">
+                  <div className="w-40 h-40 mx-auto rounded-full overflow-hidden border-4 border-electric-blue/30 group-hover:border-electric-blue/50 transition-all duration-300">
+                    <img
+                      src={founder.image}
+                      alt={founder.name}
+                      className="w-full h-full object-cover object-center transform group-hover:scale-110 transition-transform duration-300"
+                      style={{
+                        objectPosition: 'center 20%' // Adjust to show face and upper body
+                      }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-t from-electric-blue/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
                 
                 <h3 className="text-xl font-semibold mb-4 text-white">{founder.name}</h3>
@@ -145,7 +150,7 @@ const About: React.FC = () => {
                     href={founder.social.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-electric-pink/20 rounded-lg hover:bg-electric-pink/30 transition-colors"
+                    className="p-3 bg-electric-pink/20 rounded-lg hover:bg-electric-pink/30 hover:scale-110 transition-all duration-200"
                   >
                     <Instagram className="w-5 h-5 text-electric-pink" />
                   </a>
@@ -153,7 +158,7 @@ const About: React.FC = () => {
                     href={founder.social.linkedin}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-electric-blue/20 rounded-lg hover:bg-electric-blue/30 transition-colors"
+                    className="p-3 bg-electric-blue/20 rounded-lg hover:bg-electric-blue/30 hover:scale-110 transition-all duration-200"
                   >
                     <Linkedin className="w-5 h-5 text-electric-blue" />
                   </a>
@@ -161,7 +166,7 @@ const About: React.FC = () => {
                     href={founder.social.github}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-electric-green/20 rounded-lg hover:bg-electric-green/30 transition-colors"
+                    className="p-3 bg-electric-green/20 rounded-lg hover:bg-electric-green/30 hover:scale-110 transition-all duration-200"
                   >
                     <Github className="w-5 h-5 text-electric-green" />
                   </a>
