@@ -16,55 +16,43 @@ const Hero: React.FC<HeroProps> = ({ onTryDemo, onGetStarted }) => {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center max-w-4xl mx-auto">
-          {/* New Confidence Section */}
-          <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-electric-blue mb-2">
-              FUELING CONFIDENCE
-            </h2>
-            <p className="text-xl md:text-2xl text-gray-300 mb-4">
-              One Pitch at a Time
-            </p>
-            <button
-              onClick={onGetStarted}
-              className="bg-gradient-to-r from-electric-green to-electric-blue px-8 py-3 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-electric-green/25 transition-all duration-200 transform hover:scale-105 mb-4"
-            >
-              START PITCHING
-            </button>
-            <p className="text-lg text-gray-400">
-              Analyze. Improve. Impress.
-            </p>
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Perfect Your{' '}
+          {/* Main Heading - FUELING CONFIDENCE */}
+          <h1 className="text-6xl md:text-8xl font-bold mb-4 leading-tight">
             <span className="bg-gradient-to-r from-electric-blue via-electric-purple to-electric-green bg-clip-text text-transparent">
-              Startup Pitch
-            </span>{' '}
-            with AI
+              FUELING CONFIDENCE
+            </span>
           </h1>
+          
+          <h2 className="text-3xl md:text-4xl font-bold mb-8 text-white">
+            One Pitch at a Time
+          </h2>
           
           <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed">
             Transform your presentations with AI-powered real-time feedback. 
             Perfect your pitch, boost your confidence, and deliver compelling presentations that win investors.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <button
-              onClick={onTryDemo}
-              className="group flex items-center justify-center space-x-2 bg-gradient-to-r from-electric-blue to-electric-purple px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-electric-blue/30 transition-all duration-300 transform hover:scale-105"
+              onClick={onGetStarted}
+              className="group flex items-center justify-center space-x-2 bg-gradient-to-r from-electric-green to-electric-blue px-10 py-5 rounded-xl font-bold text-xl hover:shadow-2xl hover:shadow-electric-green/30 transition-all duration-300 transform hover:scale-105"
             >
-              <Play className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span>Try Demo</span>
+              <Mic className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              <span>START PITCHING</span>
             </button>
             
             <button
-              onClick={onGetStarted}
-              className="flex items-center justify-center space-x-2 border-2 border-electric-green px-8 py-4 rounded-xl font-semibold text-lg hover:bg-electric-green/10 hover:shadow-lg hover:shadow-electric-green/25 transition-all duration-300"
+              onClick={onTryDemo}
+              className="flex items-center justify-center space-x-2 border-2 border-electric-blue px-8 py-5 rounded-xl font-semibold text-xl hover:bg-electric-blue/10 hover:shadow-lg hover:shadow-electric-blue/25 transition-all duration-300"
             >
-              <Mic className="w-5 h-5" />
-              <span>Get Started Free</span>
+              <Play className="w-5 h-5" />
+              <span>Try Demo</span>
             </button>
           </div>
+
+          <p className="text-lg text-electric-blue font-semibold mb-12">
+            Analyze. Improve. Impress.
+          </p>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
