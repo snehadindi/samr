@@ -1,12 +1,11 @@
 import React from 'react';
-import { Play, Mic, TrendingUp, Users, Zap } from 'lucide-react';
+import { Mic, TrendingUp, Users } from 'lucide-react';
 
 interface HeroProps {
-  onTryDemo: () => void;
-  onGetStarted: () => void;
+  onStartPitching: () => void;
 }
 
-const Hero: React.FC<HeroProps> = ({ onTryDemo, onGetStarted }) => {
+const Hero: React.FC<HeroProps> = ({ onStartPitching }) => {
   return (
     <section className="relative py-20 overflow-hidden">
       {/* Background Effects */}
@@ -32,21 +31,13 @@ const Hero: React.FC<HeroProps> = ({ onTryDemo, onGetStarted }) => {
             Perfect your pitch, boost your confidence, and deliver compelling presentations that win investors.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <div className="flex justify-center mb-8">
             <button
-              onClick={onGetStarted}
+              onClick={onStartPitching}
               className="group flex items-center justify-center space-x-2 bg-gradient-to-r from-electric-green to-electric-blue px-10 py-5 rounded-xl font-bold text-xl hover:shadow-2xl hover:shadow-electric-green/30 transition-all duration-300 transform hover:scale-105"
             >
               <Mic className="w-6 h-6 group-hover:scale-110 transition-transform" />
               <span>START PITCHING</span>
-            </button>
-            
-            <button
-              onClick={onTryDemo}
-              className="flex items-center justify-center space-x-2 border-2 border-electric-blue px-8 py-5 rounded-xl font-semibold text-xl hover:bg-electric-blue/10 hover:shadow-lg hover:shadow-electric-blue/25 transition-all duration-300"
-            >
-              <Play className="w-5 h-5" />
-              <span>Try Demo</span>
             </button>
           </div>
 

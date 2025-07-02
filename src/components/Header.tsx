@@ -114,14 +114,21 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
     
+    const body = document.body;
+    const html = document.documentElement;
+    
     if (newTheme) {
-      document.documentElement.classList.add('dark');
-      document.body.style.background = 'linear-gradient(135deg, #000000 0%, #1e3a8a 20%, #065f46 100%)';
-      document.body.style.color = '#ffffff';
+      // Dark mode
+      html.classList.add('dark');
+      body.style.background = 'linear-gradient(135deg, #000000 0%, #1e3a8a 20%, #065f46 100%)';
+      body.style.color = '#ffffff';
+      body.classList.remove('light-mode');
     } else {
-      document.documentElement.classList.remove('dark');
-      document.body.style.background = 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 20%, #e5e7eb 100%)';
-      document.body.style.color = '#000000';
+      // Light mode
+      html.classList.remove('dark');
+      body.style.background = 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 20%, #e5e7eb 100%)';
+      body.style.color = '#000000';
+      body.classList.add('light-mode');
     }
   };
 

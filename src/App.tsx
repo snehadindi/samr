@@ -13,7 +13,6 @@ import AICoach from './components/AICoach';
 import About from './components/About';
 import Contact from './components/Contact';
 import AuthModal from './components/AuthModal';
-import DemoMode from './components/DemoMode';
 import { AuthProvider } from './contexts/AuthContext';
 import { firebaseConfig } from './config/firebase';
 
@@ -22,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-type View = 'home' | 'about' | 'contact' | 'dashboard' | 'practice' | 'templates' | 'glossary' | 'coach' | 'demo';
+type View = 'home' | 'about' | 'contact' | 'dashboard' | 'practice' | 'templates' | 'glossary' | 'coach';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,17 +39,20 @@ function App() {
   }, []);
 
   const handleNavigation = (view: View) => {
-    if (view === 'demo') {
-      setCurrentView('demo');
-      return;
-    }
-    
     if (!user && ['dashboard', 'practice', 'templates', 'glossary', 'coach'].includes(view)) {
       setShowAuthModal(true);
       return;
     }
     
     setCurrentView(view);
+  };
+
+  const handleStartPitching = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setCurrentView('practice');
   };
 
   const renderCurrentView = () => {
@@ -69,12 +71,10 @@ function App() {
         return <Glossary />;
       case 'coach':
         return <AICoach />;
-      case 'demo':
-        return <DemoMode onBackToHome={() => setCurrentView('home')} />;
       default:
         return (
           <>
-            <Hero onTryDemo={() => setCurrentView('demo')} onGetStarted={() => setShowAuthModal(true)} />
+            <Hero onStartPitching={handleStartPitching} />
             <Features />
           </>
         );
@@ -111,7 +111,7 @@ function App() {
             onClose={() => setShowAuthModal(false)}
             onSuccess={() => {
               setShowAuthModal(false);
-              setCurrentView('dashboard');
+              setCurrentView('practice');
             }}
           />
         )}
