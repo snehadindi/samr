@@ -12,12 +12,29 @@ const PitchPractice: React.FC = () => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
+  const [speechAnalysis, setSpeechAnalysis] = useState<any>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const volumeDataRef = useRef<number[]>([]);
+  const speechDataRef = useRef<{
+    totalVolume: number;
+    silencePeriods: number;
+    peakVolumes: number[];
+    averageVolume: number;
+    speechDuration: number;
+  }>({
+    totalVolume: 0,
+    silencePeriods: 0,
+    peakVolumes: [],
+    averageVolume: 0,
+    speechDuration: 0
+  });
 
   const languages = [
     { code: 'en-US', name: 'English (US)' },
@@ -40,38 +57,114 @@ const PitchPractice: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      cleanupResources();
+    };
+  }, []);
+
+  const cleanupResources = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+  };
+
+  const setupAudioAnalysis = (stream: MediaStream) => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      microphone.connect(analyser);
+      
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      
+      // Reset speech data
+      speechDataRef.current = {
+        totalVolume: 0,
+        silencePeriods: 0,
+        peakVolumes: [],
+        averageVolume: 0,
+        speechDuration: 0
+      };
+      volumeDataRef.current = [];
+      
+      // Start monitoring audio levels
+      monitorAudioLevels();
+    } catch (error) {
+      console.error('Error setting up audio analysis:', error);
+    }
+  };
+
+  const monitorAudioLevels = () => {
+    if (!analyserRef.current) return;
+    
+    const bufferLength = analyserRef.current.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    const checkAudioLevel = () => {
+      if (!analyserRef.current || !isRecording) return;
+      
+      analyserRef.current.getByteFrequencyData(dataArray);
+      
+      // Calculate volume level
+      const sum = dataArray.reduce((acc, value) => acc + value, 0);
+      const average = sum / bufferLength;
+      const volume = (average / 255) * 100;
+      
+      volumeDataRef.current.push(volume);
+      speechDataRef.current.totalVolume += volume;
+      
+      // Detect silence (volume below threshold)
+      if (volume < 5) {
+        speechDataRef.current.silencePeriods++;
+      } else {
+        speechDataRef.current.speechDuration++;
+        if (volume > 30) {
+          speechDataRef.current.peakVolumes.push(volume);
+        }
       }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
+      
+      if (isRecording) {
+        requestAnimationFrame(checkAudioLevel);
       }
     };
-  }, [audioUrl]);
+    
+    checkAudioLevel();
+  };
 
   const startRecording = async () => {
     try {
-      // Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 44100
+          sampleRate: 44100,
+          channelCount: 1
         } 
       });
       
       streamRef.current = stream;
       
-      // Check if MediaRecorder is supported
-      if (!MediaRecorder.isTypeSupported('audio/webm')) {
-        console.warn('audio/webm not supported, falling back to default');
-      }
-
+      // Setup audio analysis
+      setupAudioAnalysis(stream);
+      
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 
+                 MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined
       });
       
       mediaRecorderRef.current = mediaRecorder;
@@ -89,59 +182,91 @@ const PitchPractice: React.FC = () => {
         });
         setAudioBlob(audioBlob);
         
-        // Create audio URL for playback
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
         
-        // Clean up stream
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
+        // Calculate final speech analysis
+        const totalSamples = volumeDataRef.current.length;
+        if (totalSamples > 0) {
+          speechDataRef.current.averageVolume = speechDataRef.current.totalVolume / totalSamples;
         }
         
+        setSpeechAnalysis({ ...speechDataRef.current });
         setHasRecorded(true);
-        analyzePitch(audioBlob);
+        analyzePitch(audioBlob, speechDataRef.current);
       };
 
       mediaRecorder.onerror = (event) => {
         console.error('MediaRecorder error:', event);
         alert('Recording error occurred. Please try again.');
+        stopRecording();
       };
 
-      mediaRecorder.start(100); // Collect data every 100ms
+      mediaRecorder.start(100);
       setIsRecording(true);
       setRecordingTime(0);
       setFeedback(null);
       setHasRecorded(false);
 
+      // Start timer
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
 
     } catch (error) {
       console.error('Error accessing microphone:', error);
-      if (error instanceof DOMException) {
-        if (error.name === 'NotAllowedError') {
-          alert('Microphone access denied. Please allow microphone access and try again.');
-        } else if (error.name === 'NotFoundError') {
-          alert('No microphone found. Please connect a microphone and try again.');
-        } else {
-          alert('Error accessing microphone: ' + error.message);
-        }
-      } else {
-        alert('Please allow microphone access to record your pitch.');
-      }
+      handleMicrophoneError(error);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    console.log('Stopping recording...');
+    
+    // Stop timer first
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Stop recording
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+    }
+    
+    // Clean up stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('Track stopped:', track.kind);
+      });
+    }
+    
+    // Close audio context
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+    
+    setIsRecording(false);
+    console.log('Recording stopped, timer stopped');
+  };
+
+  const handleMicrophoneError = (error: any) => {
+    if (error instanceof DOMException) {
+      switch (error.name) {
+        case 'NotAllowedError':
+          alert('Microphone access denied. Please allow microphone access in your browser settings and try again.');
+          break;
+        case 'NotFoundError':
+          alert('No microphone found. Please connect a microphone and try again.');
+          break;
+        case 'NotReadableError':
+          alert('Microphone is being used by another application. Please close other apps using the microphone and try again.');
+          break;
+        default:
+          alert('Error accessing microphone: ' + error.message);
       }
+    } else {
+      alert('Please allow microphone access to record your pitch.');
     }
   };
 
@@ -150,9 +275,16 @@ const PitchPractice: React.FC = () => {
       if (!audioRef.current) {
         audioRef.current = new Audio(audioUrl);
         audioRef.current.onended = () => setIsPlaying(false);
+        audioRef.current.onerror = () => {
+          console.error('Audio playback error');
+          setIsPlaying(false);
+        };
       }
       
-      audioRef.current.play();
+      audioRef.current.play().catch(error => {
+        console.error('Playback failed:', error);
+        setIsPlaying(false);
+      });
       setIsPlaying(true);
     }
   };
@@ -164,38 +296,37 @@ const PitchPractice: React.FC = () => {
     }
   };
 
-  const analyzePitch = async (audioBlob: Blob) => {
+  const analyzePitch = async (audioBlob: Blob, speechData: any) => {
     setIsAnalyzing(true);
     
     try {
-      // Simulate realistic analysis time
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Calculate duration for more realistic scoring
       const audioDuration = recordingTime;
       const expectedDuration = templates.find(t => t.id === selectedTemplate)?.duration || 30;
-      
-      // More sophisticated scoring based on recording characteristics
-      const durationScore = Math.max(50, 100 - Math.abs(audioDuration - expectedDuration) * 2);
-      const baseScore = Math.floor(Math.random() * 15) + 70; // 70-85 base
-      
-      // Simulate analysis of audio characteristics
       const audioSize = audioBlob.size;
-      const sizeScore = Math.min(100, Math.max(60, (audioSize / 1000) * 2)); // Rough quality indicator
       
-      const overallScore = Math.floor((baseScore + durationScore + sizeScore) / 3);
+      // Calculate scores based on actual speech analysis
+      const clarityScore = calculateClarityScore(speechData, audioSize, audioDuration);
+      const confidenceScore = calculateConfidenceScore(speechData, audioDuration);
+      const pacingScore = calculatePacingScore(audioDuration, expectedDuration, speechData);
+      const structureScore = calculateStructureScore(speechData, audioDuration);
+      
+      const overallScore = Math.round((clarityScore + confidenceScore + pacingScore + structureScore) / 4);
       
       const mockFeedback = {
-        overallScore: Math.min(95, Math.max(65, overallScore)),
-        clarity: Math.floor(Math.random() * 15) + 75 + (audioSize > 50000 ? 5 : 0),
-        confidence: Math.floor(Math.random() * 20) + 70 + (audioDuration > 10 ? 5 : 0),
-        pacing: Math.floor(Math.random() * 25) + 70 + (Math.abs(audioDuration - expectedDuration) < 5 ? 10 : 0),
-        structure: Math.floor(Math.random() * 20) + 75,
+        overallScore: Math.min(100, Math.max(30, overallScore)),
+        clarity: Math.min(100, Math.max(30, clarityScore)),
+        confidence: Math.min(100, Math.max(30, confidenceScore)),
+        pacing: Math.min(100, Math.max(30, pacingScore)),
+        structure: Math.min(100, Math.max(30, structureScore)),
         duration: audioDuration,
         expectedDuration: expectedDuration,
-        suggestions: generateSuggestions(audioDuration, expectedDuration, audioSize),
-        strengths: generateStrengths(audioDuration, audioSize),
-        improvements: generateImprovements(audioDuration, expectedDuration)
+        audioSize: audioSize,
+        speechData: speechData,
+        suggestions: generateDetailedSuggestions(audioDuration, expectedDuration, speechData, audioSize),
+        strengths: generateDetailedStrengths(speechData, audioDuration, audioSize),
+        improvements: generateDetailedImprovements(speechData, audioDuration, expectedDuration)
       };
       
       setFeedback(mockFeedback);
@@ -207,55 +338,182 @@ const PitchPractice: React.FC = () => {
     }
   };
 
-  const generateSuggestions = (duration: number, expected: number, size: number) => {
+  const calculateClarityScore = (speechData: any, audioSize: number, duration: number) => {
+    let score = 50; // Base score
+    
+    // Audio quality (file size indicates quality)
+    const sizePerSecond = audioSize / duration;
+    if (sizePerSecond > 8000) score += 20; // Good quality
+    else if (sizePerSecond > 4000) score += 10; // Decent quality
+    
+    // Average volume (indicates clear speech)
+    if (speechData.averageVolume > 20) score += 15;
+    else if (speechData.averageVolume > 10) score += 10;
+    else if (speechData.averageVolume < 5) score -= 20; // Too quiet
+    
+    // Speech consistency (fewer silence periods = better clarity)
+    const silenceRatio = speechData.silencePeriods / (speechData.speechDuration + speechData.silencePeriods);
+    if (silenceRatio < 0.3) score += 15; // Good speech flow
+    else if (silenceRatio > 0.6) score -= 15; // Too many pauses
+    
+    return Math.round(score);
+  };
+
+  const calculateConfidenceScore = (speechData: any, duration: number) => {
+    let score = 50; // Base score
+    
+    // Volume consistency indicates confidence
+    if (speechData.averageVolume > 25) score += 20; // Strong voice
+    else if (speechData.averageVolume > 15) score += 10; // Moderate voice
+    else if (speechData.averageVolume < 8) score -= 15; // Weak voice
+    
+    // Peak volumes indicate emphasis and engagement
+    if (speechData.peakVolumes.length > duration * 0.1) score += 15; // Good emphasis
+    
+    // Duration indicates confidence to speak
+    if (duration > 10) score += 10; // Willing to speak at length
+    else if (duration < 5) score -= 10; // Very brief
+    
+    // Silence periods (too many indicate hesitation)
+    const silenceRatio = speechData.silencePeriods / (speechData.speechDuration + speechData.silencePeriods);
+    if (silenceRatio > 0.5) score -= 20; // Too hesitant
+    
+    return Math.round(score);
+  };
+
+  const calculatePacingScore = (duration: number, expectedDuration: number, speechData: any) => {
+    let score = 50; // Base score
+    
+    // Duration matching
+    const durationDiff = Math.abs(duration - expectedDuration);
+    const durationRatio = durationDiff / expectedDuration;
+    
+    if (durationRatio < 0.1) score += 25; // Perfect timing
+    else if (durationRatio < 0.2) score += 15; // Good timing
+    else if (durationRatio < 0.3) score += 5; // Acceptable timing
+    else if (durationRatio > 0.5) score -= 20; // Poor timing
+    
+    // Speech flow (balance of speech and pauses)
+    const silenceRatio = speechData.silencePeriods / (speechData.speechDuration + speechData.silencePeriods);
+    if (silenceRatio >= 0.2 && silenceRatio <= 0.4) score += 15; // Good pacing
+    else if (silenceRatio < 0.1) score -= 10; // Too fast
+    else if (silenceRatio > 0.6) score -= 15; // Too slow
+    
+    return Math.round(score);
+  };
+
+  const calculateStructureScore = (speechData: any, duration: number) => {
+    let score = 60; // Base score (harder to measure without content analysis)
+    
+    // Longer speeches tend to have better structure
+    if (duration > 30) score += 10;
+    else if (duration < 10) score -= 10;
+    
+    // Consistent volume suggests organized delivery
+    if (speechData.peakVolumes.length > 0) {
+      const volumeVariation = Math.max(...speechData.peakVolumes) - Math.min(...speechData.peakVolumes);
+      if (volumeVariation > 20 && volumeVariation < 50) score += 10; // Good variation
+    }
+    
+    // Speech-to-silence ratio indicates structure
+    const speechRatio = speechData.speechDuration / (speechData.speechDuration + speechData.silencePeriods);
+    if (speechRatio >= 0.6 && speechRatio <= 0.8) score += 15; // Well structured
+    
+    return Math.round(score);
+  };
+
+  const generateDetailedSuggestions = (duration: number, expected: number, speechData: any, size: number) => {
     const suggestions = [];
     
+    // Duration feedback
     if (duration < expected * 0.7) {
-      suggestions.push("Your pitch was quite short. Try to elaborate more on your key points.");
+      suggestions.push(`Your pitch was ${Math.round((expected - duration) / expected * 100)}% shorter than recommended. Try to elaborate more on your key points.`);
     } else if (duration > expected * 1.3) {
-      suggestions.push("Your pitch was longer than expected. Focus on the most important points.");
+      suggestions.push(`Your pitch was ${Math.round((duration - expected) / expected * 100)}% longer than recommended. Focus on the most important points.`);
     } else {
-      suggestions.push("Great timing! Your pitch duration was well-suited for the format.");
+      suggestions.push("Excellent timing! Your pitch duration was well-suited for the format.");
     }
     
-    if (size < 30000) {
-      suggestions.push("Speak a bit louder and clearer for better audio quality.");
-    } else {
-      suggestions.push("Good audio quality detected. Your voice came through clearly.");
+    // Volume feedback
+    if (speechData.averageVolume < 10) {
+      suggestions.push("Speak louder and project your voice more confidently. Your audience needs to hear you clearly.");
+    } else if (speechData.averageVolume > 40) {
+      suggestions.push("Good voice projection! You're speaking at an excellent volume level.");
     }
     
-    suggestions.push("Practice your opening hook to grab attention immediately.");
-    suggestions.push("End with a strong call to action to engage your audience.");
+    // Pacing feedback
+    const silenceRatio = speechData.silencePeriods / (speechData.speechDuration + speechData.silencePeriods);
+    if (silenceRatio > 0.5) {
+      suggestions.push("Try to reduce long pauses and hesitations. Practice your content to speak more fluidly.");
+    } else if (silenceRatio < 0.2) {
+      suggestions.push("Consider adding strategic pauses to let important points sink in with your audience.");
+    } else {
+      suggestions.push("Great pacing! You have a good balance of speech and strategic pauses.");
+    }
+    
+    // Audio quality feedback
+    const sizePerSecond = size / duration;
+    if (sizePerSecond < 4000) {
+      suggestions.push("Consider using a better microphone or speaking closer to your device for clearer audio quality.");
+    }
     
     return suggestions;
   };
 
-  const generateStrengths = (duration: number, size: number) => {
-    const strengths = ["Clear articulation"];
+  const generateDetailedStrengths = (speechData: any, duration: number, size: number) => {
+    const strengths = [];
+    
+    if (speechData.averageVolume > 20) {
+      strengths.push("Strong voice projection");
+    }
     
     if (duration > 15) {
       strengths.push("Good content depth");
     }
-    if (size > 40000) {
-      strengths.push("Strong voice projection");
+    
+    const silenceRatio = speechData.silencePeriods / (speechData.speechDuration + speechData.silencePeriods);
+    if (silenceRatio >= 0.2 && silenceRatio <= 0.4) {
+      strengths.push("Well-paced delivery");
     }
     
-    strengths.push("Logical flow");
+    if (speechData.peakVolumes.length > duration * 0.1) {
+      strengths.push("Good vocal emphasis");
+    }
+    
+    if (size / duration > 6000) {
+      strengths.push("Clear audio quality");
+    }
+    
+    if (strengths.length === 0) {
+      strengths.push("Completed the recording");
+    }
+    
     return strengths;
   };
 
-  const generateImprovements = (duration: number, expected: number) => {
+  const generateDetailedImprovements = (speechData: any, duration: number, expected: number) => {
     const improvements = [];
     
-    if (Math.abs(duration - expected) > 10) {
+    if (Math.abs(duration - expected) > expected * 0.2) {
       improvements.push("Timing consistency");
     }
     
-    improvements.push("Reduce hesitations");
-    improvements.push("Add more pauses");
-    improvements.push("Vary speaking pace");
+    if (speechData.averageVolume < 15) {
+      improvements.push("Voice projection");
+    }
     
-    return improvements;
+    const silenceRatio = speechData.silencePeriods / (speechData.speechDuration + speechData.silencePeriods);
+    if (silenceRatio > 0.4) {
+      improvements.push("Reduce hesitations");
+    }
+    
+    if (speechData.peakVolumes.length < duration * 0.05) {
+      improvements.push("Add vocal variety");
+    }
+    
+    improvements.push("Practice for fluency");
+    
+    return improvements.slice(0, 4); // Limit to 4 improvements
   };
 
   const formatTime = (seconds: number) => {
@@ -265,6 +523,14 @@ const PitchPractice: React.FC = () => {
   };
 
   const resetSession = () => {
+    console.log('Resetting session...');
+    
+    // Stop any ongoing recording
+    if (isRecording) {
+      stopRecording();
+    }
+    
+    // Reset all states
     setIsRecording(false);
     setIsPlaying(false);
     setRecordingTime(0);
@@ -272,25 +538,34 @@ const PitchPractice: React.FC = () => {
     setAudioBlob(null);
     setHasRecorded(false);
     setIsAnalyzing(false);
+    setSpeechAnalysis(null);
     
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    // Clean up resources
+    cleanupResources();
     
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
+    // Clean up audio URL
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
     }
     
+    // Reset audio element
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
+    
+    // Reset speech data
+    speechDataRef.current = {
+      totalVolume: 0,
+      silencePeriods: 0,
+      peakVolumes: [],
+      averageVolume: 0,
+      speechDuration: 0
+    };
+    volumeDataRef.current = [];
+    
+    console.log('Session reset complete');
   };
 
   return (
@@ -304,7 +579,7 @@ const PitchPractice: React.FC = () => {
             </span>
           </h1>
           <p className="text-xl text-gray-300">
-            Record your pitch and get instant AI-powered feedback
+            Record your pitch and get instant AI-powered feedback based on your actual speech
           </p>
         </div>
 
@@ -315,7 +590,8 @@ const PitchPractice: React.FC = () => {
             <select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-electric-blue"
+              disabled={isRecording}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-electric-blue disabled:opacity-50"
             >
               {languages.map((lang) => (
                 <option key={lang.code} value={lang.code} className="bg-gray-800">
@@ -330,7 +606,8 @@ const PitchPractice: React.FC = () => {
             <select
               value={selectedTemplate}
               onChange={(e) => setSelectedTemplate(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-electric-blue"
+              disabled={isRecording}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-electric-blue disabled:opacity-50"
             >
               {templates.map((template) => (
                 <option key={template.id} value={template.id} className="bg-gray-800">
@@ -362,9 +639,9 @@ const PitchPractice: React.FC = () => {
               </div>
 
               <div className="text-gray-300 mb-6">
-                {isRecording ? 'Recording in progress...' : 
-                 isAnalyzing ? 'Analyzing your pitch...' :
-                 hasRecorded ? 'Recording complete!' : 'Ready to record'}
+                {isRecording ? 'Recording in progress... Speak clearly!' : 
+                 isAnalyzing ? 'Analyzing your speech patterns...' :
+                 hasRecorded ? 'Recording complete! Check your results below.' : 'Ready to record your pitch'}
               </div>
 
               {isAnalyzing && (
@@ -372,6 +649,19 @@ const PitchPractice: React.FC = () => {
                   <div className="w-2 h-2 bg-electric-blue rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-electric-green rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                   <div className="w-2 h-2 bg-electric-purple rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              )}
+
+              {/* Real-time volume indicator */}
+              {isRecording && speechAnalysis && (
+                <div className="mb-4">
+                  <div className="text-sm text-gray-400 mb-2">Voice Level</div>
+                  <div className="w-32 h-2 bg-gray-700 rounded-full mx-auto">
+                    <div 
+                      className="h-2 bg-gradient-to-r from-electric-green to-electric-blue rounded-full transition-all duration-100"
+                      style={{ width: `${Math.min(100, (speechDataRef.current.averageVolume || 0) * 2)}%` }}
+                    ></div>
+                  </div>
                 </div>
               )}
             </div>
@@ -398,7 +688,7 @@ const PitchPractice: React.FC = () => {
 
               <button
                 onClick={resetSession}
-                disabled={isRecording || isAnalyzing}
+                disabled={isAnalyzing}
                 className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RotateCcw className="w-5 h-5" />
@@ -427,7 +717,11 @@ const PitchPractice: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-bold mb-2">
                 Your Pitch Score:{' '}
-                <span className="bg-gradient-to-r from-electric-green to-electric-blue bg-clip-text text-transparent">
+                <span className={`bg-gradient-to-r ${
+                  feedback.overallScore >= 80 ? 'from-electric-green to-electric-blue' :
+                  feedback.overallScore >= 60 ? 'from-electric-blue to-electric-purple' :
+                  'from-electric-pink to-electric-purple'
+                } bg-clip-text text-transparent`}>
                   {feedback.overallScore}%
                 </span>
               </h2>
@@ -435,6 +729,12 @@ const PitchPractice: React.FC = () => {
                 Recording Duration: {formatTime(feedback.duration)} 
                 {feedback.expectedDuration > 0 && ` (Target: ${formatTime(feedback.expectedDuration)})`}
               </p>
+              {feedback.speechData && (
+                <p className="text-sm text-gray-400 mt-2">
+                  Average Volume: {Math.round(feedback.speechData.averageVolume)}% | 
+                  Audio Quality: {Math.round(feedback.audioSize / feedback.duration / 1000)}KB/s
+                </p>
+              )}
             </div>
 
             {/* Score Breakdown */}
@@ -450,6 +750,12 @@ const PitchPractice: React.FC = () => {
                     {metric.score}%
                   </div>
                   <div className="text-sm text-gray-300">{metric.label}</div>
+                  <div className="w-full bg-gray-700 rounded-full h-1 mt-2">
+                    <div
+                      className={`h-1 rounded-full bg-${metric.color} transition-all duration-500`}
+                      style={{ width: `${metric.score}%` }}
+                    ></div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -483,7 +789,7 @@ const PitchPractice: React.FC = () => {
 
             {/* Suggestions */}
             <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-              <h3 className="text-xl font-semibold mb-4">AI Suggestions</h3>
+              <h3 className="text-xl font-semibold mb-4">Detailed AI Analysis</h3>
               <div className="space-y-3">
                 {feedback.suggestions.map((suggestion: string, index: number) => (
                   <div key={index} className="flex items-start space-x-3">
