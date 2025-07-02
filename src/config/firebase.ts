@@ -10,9 +10,12 @@ export const firebaseConfig = {
 
 // Check if Firebase is properly configured
 export const isFirebaseConfigured = () => {
-  return !!(
-    import.meta.env.VITE_FIREBASE_API_KEY &&
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
-    import.meta.env.VITE_FIREBASE_PROJECT_ID
-  );
+  const hasApiKey = import.meta.env.VITE_FIREBASE_API_KEY && 
+                   import.meta.env.VITE_FIREBASE_API_KEY !== "demo-key";
+  const hasAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN && 
+                       import.meta.env.VITE_FIREBASE_AUTH_DOMAIN !== "demo-project.firebaseapp.com";
+  const hasProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID && 
+                      import.meta.env.VITE_FIREBASE_PROJECT_ID !== "demo-project";
+  
+  return hasApiKey && hasAuthDomain && hasProjectId;
 };

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, signOut } from 'firebase/auth';
 import { 
   Mic, LogOut, User as UserIcon, Home, BarChart3, FileText, BookOpen, MessageCircle,
-  Search, Bell, Settings, HelpCircle, Menu, X, ChevronDown, Sun, Moon,
+  Search, Bell, Settings, Menu, X, ChevronDown, Sun, Moon,
   Zap, Star, Gift
 } from 'lucide-react';
 import { auth } from '../App';
@@ -111,8 +111,18 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
   }, []);
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark');
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    
+    if (newTheme) {
+      document.documentElement.classList.add('dark');
+      document.body.style.background = 'linear-gradient(135deg, #000000 0%, #1e3a8a 20%, #065f46 100%)';
+      document.body.style.color = '#ffffff';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.style.background = 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 20%, #e5e7eb 100%)';
+      document.body.style.color = '#000000';
+    }
   };
 
   const handleSearch = (query: string) => {
@@ -214,15 +224,6 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
               title="Toggle theme"
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-
-            {/* Help */}
-            <button
-              onClick={() => onNavigate('coach')}
-              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-              title="Get help"
-            >
-              <HelpCircle className="w-5 h-5" />
             </button>
 
             {user ? (
@@ -362,17 +363,6 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
                         <button className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-white/10 rounded-lg transition-colors">
                           <Settings className="w-4 h-4" />
                           <span>Settings</span>
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            onNavigate('coach');
-                            setIsProfileOpen(false);
-                          }}
-                          className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-white/10 rounded-lg transition-colors"
-                        >
-                          <HelpCircle className="w-4 h-4" />
-                          <span>Help & Support</span>
                         </button>
                         
                         <hr className="my-2 border-white/10" />

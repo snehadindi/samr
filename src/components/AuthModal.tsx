@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signInWithPopup, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { X, Mail } from 'lucide-react';
 import { auth } from '../App';
@@ -13,6 +13,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Check for redirect result on component mount
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          onSuccess();
+        }
+      } catch (error: any) {
+        console.error('Redirect result error:', error);
+        setError(error.message || 'Authentication failed');
+      }
+    };
+
+    checkRedirectResult();
+  }, [onSuccess]);
+
   const handleGoogleSignIn = async () => {
     if (!isFirebaseConfigured()) {
       setError('Firebase is not configured. Please set up your environment variables.');
@@ -26,17 +43,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
+      
+      // Set custom parameters for better user experience
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
 
       try {
         // Try popup first
         const result = await signInWithPopup(auth, provider);
         if (result.user) {
+          console.log('User signed in successfully:', result.user);
           onSuccess();
         }
       } catch (popupError: any) {
-        // If popup is blocked, fall back to redirect
-        if (popupError.code === 'auth/popup-blocked') {
+        console.log('Popup error:', popupError.code);
+        
+        // If popup is blocked or fails, fall back to redirect
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/popup-closed-by-user' ||
+            popupError.code === 'auth/cancelled-popup-request') {
+          console.log('Falling back to redirect method');
           await signInWithRedirect(auth, provider);
+          // Don't set loading to false here as the page will redirect
+          return;
         } else {
           throw popupError;
         }
@@ -44,8 +74,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
     } catch (error: any) {
       console.error('Authentication error:', error);
       setError(error.message || 'Failed to sign in. Please try again.');
-    } finally {
       setLoading(false);
+    } finally {
+      // Only set loading to false if we're not redirecting
+      if (!error) {
+        setLoading(false);
+      }
     }
   };
 
