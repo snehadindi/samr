@@ -90,21 +90,6 @@ const Features: React.FC = () => {
             );
           })}
         </div>
-
-        {/* Call to Action */}
-        <div className="text-center mt-16">
-          <div className="bg-gradient-to-r from-electric-blue/10 to-electric-purple/10 rounded-2xl p-8 border border-white/10">
-            <h3 className="text-3xl font-bold mb-4">
-              Ready to Transform Your Presentations?
-            </h3>
-            <p className="text-xl text-gray-300 mb-6">
-              Join thousands of founders who have already improved their pitch success rate by 85%
-            </p>
-            <button className="bg-gradient-to-r from-electric-blue to-electric-purple px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-electric-blue/30 transition-all duration-300 transform hover:scale-105">
-              Start Your Free Trial
-            </button>
-          </div>
-        </div>
       </div>
     </section>
   );

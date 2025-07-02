@@ -39,7 +39,8 @@ function App() {
   }, []);
 
   const handleNavigation = (view: View) => {
-    if (!user && ['dashboard', 'practice', 'templates', 'glossary', 'coach'].includes(view)) {
+    // Only require authentication for dashboard, templates, glossary, and coach
+    if (!user && ['dashboard', 'templates', 'glossary', 'coach'].includes(view)) {
       setShowAuthModal(true);
       return;
     }
@@ -48,10 +49,7 @@ function App() {
   };
 
   const handleStartPitching = () => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
+    // Allow direct access to practice without authentication
     setCurrentView('practice');
   };
 
@@ -111,7 +109,7 @@ function App() {
             onClose={() => setShowAuthModal(false)}
             onSuccess={() => {
               setShowAuthModal(false);
-              setCurrentView('practice');
+              setCurrentView('dashboard');
             }}
           />
         )}
