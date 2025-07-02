@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, signOut } from 'firebase/auth';
 import { 
   Mic, LogOut, User as UserIcon, Home, BarChart3, FileText, BookOpen, MessageCircle,
-  Search, Bell, Settings, Menu, X, ChevronDown, Sun, Moon,
+  Search, Bell, Settings, Menu, X, ChevronDown,
   Zap, Star, Gift
 } from 'lucide-react';
 import { auth } from '../App';
@@ -19,7 +19,6 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [showQuickSearch, setShowQuickSearch] = useState(false);
   
   const profileRef = useRef<HTMLDivElement>(null);
@@ -109,28 +108,6 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    
-    const body = document.body;
-    const html = document.documentElement;
-    
-    if (newTheme) {
-      // Dark mode
-      html.classList.add('dark');
-      body.style.background = 'linear-gradient(135deg, #000000 0%, #1e3a8a 20%, #065f46 100%)';
-      body.style.color = '#ffffff';
-      body.classList.remove('light-mode');
-    } else {
-      // Light mode
-      html.classList.remove('dark');
-      body.style.background = 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 20%, #e5e7eb 100%)';
-      body.style.color = '#000000';
-      body.classList.add('light-mode');
-    }
-  };
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -224,15 +201,6 @@ const Header: React.FC<HeaderProps> = ({ user, currentView, onNavigate, onShowAu
 
           {/* Right Side - Actions */}
           <div className="flex items-center space-x-4">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-              title="Toggle theme"
-            >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-
             {user ? (
               <>
                 {/* Notifications */}
