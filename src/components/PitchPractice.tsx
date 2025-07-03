@@ -192,8 +192,26 @@ const PitchPractice: React.FC = () => {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        analyzePitch(audioBlob);
+        // Check if we have audio data before creating blob
+        if (audioChunksRef.current.length > 0) {
+          // Use the correct MIME type that matches the recorded format
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          analyzePitch(audioBlob);
+        } else {
+          console.warn('No audio data recorded');
+          // Generate fallback feedback for no audio
+          const fallbackAnalysis = {
+            hasAudio: false,
+            averageLevel: 0,
+            speechTime: 0,
+            silenceTime: recordingTime,
+            speechPercentage: 0,
+            estimatedWords: 0,
+            audioQuality: 'poor'
+          };
+          const mockFeedback = generateRealisticFeedback(fallbackAnalysis, recordingTime);
+          setFeedback(mockFeedback);
+        }
         
         // Clean up
         if (streamRef.current) {
@@ -263,7 +281,10 @@ const PitchPractice: React.FC = () => {
         hasAudio: recordingTime > 2,
         averageLevel: audioLevel,
         speechTime: recordingTime * 0.7, // Estimate 70% speech
-        silenceTime: recordingTime * 0.3
+        silenceTime: recordingTime * 0.3,
+        speechPercentage: 70,
+        estimatedWords: Math.floor(recordingTime * 1.5),
+        audioQuality: 'fair'
       };
       
       const mockFeedback = generateRealisticFeedback(fallbackAnalysis, recordingTime);
@@ -662,7 +683,7 @@ const PitchPractice: React.FC = () => {
                     feedback.technicalDetails.audioQuality === 'fair' ? 'text-yellow-500' :
                     'text-red-500'
                   }`}>
-                    {feedback.technicalDetails.audioQuality.toUpperCase()}
+                    {(feedback.technicalDetails.audioQuality ?? '').toUpperCase()}
                   </div>
                   <div className="text-sm text-gray-400">Audio Quality</div>
                 </div>
