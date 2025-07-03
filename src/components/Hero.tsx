@@ -67,7 +67,7 @@ const Hero: React.FC<HeroProps> = ({ onStartPitching }) => {
               <div className="flex items-center justify-center w-12 h-12 bg-electric-purple/20 rounded-lg mx-auto mb-4">
                 <Mic className="w-6 h-6 text-electric-purple" />
               </div>
-              <div className="text-3xl font-bold text-electric-purple mb-2">10+</div>
+              <div className="text-3xl font-bold text-electric-purple mb-2">55+</div>
               <div className="text-gray-300">Languages Supported</div>
             </div>
           </div>
